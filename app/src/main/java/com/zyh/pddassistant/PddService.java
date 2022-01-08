@@ -14,8 +14,6 @@ import android.widget.Toast;
 
 import androidx.annotation.RequiresApi;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -25,6 +23,7 @@ import java.util.Random;
 public class PddService extends AccessibilityService {
     private static final String TAG = "Service";
     private static final String PDD_Package_Name = "com.xunmeng.pinduoduo";
+    private static final String DianTao_Package_Name = "com.taobao.live";
     private boolean onSlide = false;
     private long offsetTime;
     private double menuTime = 0;
@@ -163,7 +162,7 @@ public class PddService extends AccessibilityService {
     private void meal(){
         AccessibilityNodeInfo root = getRootInActiveWindow();
         String[] texts = new String[]{"^可领取", "领取[早午晚]餐(额外)?补贴","^收下补贴","5点来领早餐补贴"
-                ,"17点来领晚餐补贴"};
+                ,"11点来领午餐补贴","17点来领晚餐补贴"};
         for(String text : texts){
             performAllActionByText(root,text);
         }
@@ -193,7 +192,17 @@ public class PddService extends AccessibilityService {
             dispatchGesture(description, new MyCallBack(), null);
         }
     }
-    private void openMenu(){
+    private void backInSimulator(){//90,220
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Log.d(TAG, "返回");
+            Path path = new Path();
+            path.moveTo(90,220);
+            GestureDescription.Builder builder = new GestureDescription.Builder();
+            GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 500L, 100L)).build();
+            dispatchGesture(description, new MyCallBack(), null);
+        }
+    }
+    private void openMenu(){//90,220
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             Log.d(TAG, "openMenu");
             Path path = new Path();
@@ -244,6 +253,28 @@ public class PddService extends AccessibilityService {
         }
 
     }
+    private void slide(){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Path path = new Path();
+//                path.moveTo(500, 1287);//设置Path的起点
+//                path.quadTo(450, 1036, 90, 864);
+            path.moveTo(750, 1500);//设置Path的起点
+            path.lineTo(750,1000);
+            GestureDescription.Builder builder = new GestureDescription.Builder();
+            GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 500L, 100L)).build();
+            dispatchGesture(description, new MyCallBack(), null);
+        }
+    }
+    private void slideInSimulator(){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Path path = new Path();
+            path.moveTo(750, 2000);//设置Path的起点
+            path.lineTo(750,100);
+            GestureDescription.Builder builder = new GestureDescription.Builder();
+            GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 100L, 800L)).build();
+            dispatchGesture(description, new MyCallBack(), null);
+        }
+    }
     /**
      * 各元素位置：
      * 换现金：1325,590
@@ -256,15 +287,11 @@ public class PddService extends AccessibilityService {
      * 领红包（看视频领红包页面领取按钮）：750,2150
      * 吃饭补贴领取(吃饭补贴页面领取按钮)：750,2050
      */
-    private void MyGesture(){//仿滑动
+    private void PDDAssistant(){//仿滑动
         if(onSlide) return;
-        Log.d(TAG, "MyGesture");
+        Log.d(TAG, "PDDAssistant");
         new Thread(()->{
             onSlide = true;
-//            if (allText<3){
-//                Log.d(TAG, "allTexts: "+getAllTexts(getRootInActiveWindow()));
-//                allText+=1;
-//            }
             Log.d(TAG, "allTexts: "+getAllTexts(getRootInActiveWindow()));
 //            back();
 //            browse();
@@ -277,31 +304,103 @@ public class PddService extends AccessibilityService {
                 if(inBrowse) Log.d(TAG, "inBrowse");
                 else Log.d(TAG, "inMenu");
             }
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                Path path = new Path();
-//                path.moveTo(500, 1287);//设置Path的起点
-//                path.quadTo(450, 1036, 90, 864);
-//                Path path = new Path();
-//                path.moveTo(1200,815);
-                path.moveTo(750, 1500);//设置Path的起点
-                path.lineTo(750,1000);
-
-//                drawPath(path);
-                GestureDescription.Builder builder = new GestureDescription.Builder();
-                GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 500L, 100L)).build();
-                try {
-                    int time = new Random().nextInt(500)+3000;
-                    Thread.sleep(time);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                //100L 第一个是开始的时间，第二个是持续时间
-                dispatchGesture(description, new MyCallBack(), null);
+            slide();
+            try {
+                int time = new Random().nextInt(500)+3000;
+                Thread.sleep(time);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
             onSlide = false;
         }).start();
     }
+    private void clickGoldIngot(){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Log.d(TAG, "点击元宝");
+            Path path = new Path();
+            path.moveTo(1325,875);
+            GestureDescription.Builder builder = new GestureDescription.Builder();
+            GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 500L, 100L)).build();
+            dispatchGesture(description, new MyCallBack(), null);
+        }
+    }//backInSimulator()
+    private void clickCloseInSimulator(){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Log.d(TAG, "关闭窗口");
+            Path path = new Path();
+            path.moveTo(1250,800);
+            GestureDescription.Builder builder = new GestureDescription.Builder();
+            GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 500L, 100L)).build();
+            dispatchGesture(description, new MyCallBack(), null);
+        }
+    }
+    private void DTAssistant(){
+        if(onSlide) return;
+        Log.d(TAG, "DTAssistant");
+        new Thread(()->{
+            onSlide = true;
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            Log.d(TAG, "allTexts: "+getAllTexts(root));
+            int time = 10000;
+            if(!getAllNodesByText(root,"^元宝中心$").isEmpty()){
+                Log.d(TAG, "DTAssistant: 元宝中心");//邀请好友 再赚38元
+                boolean action = false;
+                String[] texts = new String[]{"^领取","邀请好友 再赚.*元"};
+                for(String text : texts){
+                    action|=performAllActionByText(root,text);
+                }
+                if(action) time = 2000;
+                else back();
+            }else if(!getAllNodesByText(root,"^6/6$").isEmpty()){
+                clickGoldIngot();
+                time = 2000;
+            }
+            try {
+                Thread.sleep(time);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            onSlide = false;
+        }).start();
+    }
+    private void DTAssistantInSimulator(){
+        if(onSlide) return;
+        Log.d(TAG, "DTAssistant");
+        new Thread(()->{
+            onSlide = true;
+            AccessibilityNodeInfo root = getRootInActiveWindow();
+            Log.d(TAG, "allTexts: "+getAllTexts(root));
+            int time = 10000;
+            if(!getAllNodesByText(root,"^元宝中心$").isEmpty()){
+                Log.d(TAG, "DTAssistant: 元宝中心");//邀请好友 再赚38元
+                if(performAllActionByText(root,"^领取")) time = 2000;
+                else if(performAllActionByText(root,"去看直播赚.*元宝")) time = 2000;
+                else if(!getAllNodesByText(root,"邀请好友 再赚.*元").isEmpty()) {
+                    time = 2000;
+                    clickCloseInSimulator();
+                }else if(!getAllNodesByText(root,"走路赚元宝 每日.*元宝").isEmpty()) {
+                    time = 2000;
+                    clickCloseInSimulator();
+                }
+                else {
+                    backInSimulator();
+                }
+            }else if(!getAllNodesByText(root,"^6/6$").isEmpty()){
+                slideInSimulator();
+                clickGoldIngot();
+                time = 2000;
+            }else{
+                slideInSimulator();
+            }
+            try {
+                Thread.sleep(time);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            onSlide = false;
+        }).start();
+    }
+
     @RequiresApi(api = Build.VERSION_CODES.N)
     class MyCallBack extends GestureResultCallback {
 
@@ -378,8 +477,9 @@ public class PddService extends AccessibilityService {
             if (rootInfo == null) {
                 return;
             }
-            if(rootInfo.getPackageName().equals(PDD_Package_Name) &&
-                    getAllNodesByText(rootInfo, "拼小圈").isEmpty()) MyGesture();
+            if(rootInfo.getPackageName().equals(PDD_Package_Name)) {
+                if(getAllNodesByText(rootInfo, "拼小圈").isEmpty()) PDDAssistant();
+            }else if(rootInfo.getPackageName().equals(DianTao_Package_Name)) DTAssistantInSimulator();
         }catch (Exception e){
             Log.d(TAG, "onAccessibilityEvent: Error");
         }
