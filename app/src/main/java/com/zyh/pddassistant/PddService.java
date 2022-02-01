@@ -2,11 +2,14 @@ package com.zyh.pddassistant;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
+import android.annotation.SuppressLint;
+import android.content.ContextWrapper;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.os.Build;
+import android.os.Environment;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -14,6 +17,8 @@ import android.widget.Toast;
 
 import androidx.annotation.RequiresApi;
 
+import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -23,17 +28,22 @@ import java.util.Random;
 public class PddService extends AccessibilityService {
     private static final String TAG = "Service";
     private static final String PDD_Package_Name = "com.xunmeng.pinduoduo";
-    private static final String DianTao_Package_Name = "com.taobao.live";
+    private int waitTime = 3000;
     private boolean onSlide = false;
     private long offsetTime;
     private double menuTime = 0;
+    private double slideTime = 0;
+    private double realTime = 0;
     private boolean inMenu = false;
     private boolean inBrowse = false;
     private double browseTime = 0;
+    private SimpleDateFormat sdf;
     @Override
     public void onCreate() {
         Log.d(TAG, "onCreate: ");
         Toast.makeText(getApplicationContext(),"开启服务", Toast.LENGTH_SHORT).show();
+        sdf = new SimpleDateFormat();
+        sdf.applyPattern("yyyy-MM-dd HH:mm:ss");
         Date today = new Date();
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(today);
@@ -45,6 +55,7 @@ public class PddService extends AccessibilityService {
     @Override
     public void onDestroy() {
         Log.d(TAG, "onDestroy: ");
+        Toast.makeText(getApplicationContext(),"关闭服务", Toast.LENGTH_SHORT).show();
         super.onDestroy();
     }
 
@@ -134,30 +145,13 @@ public class PddService extends AccessibilityService {
             root = getRootInActiveWindow();
         }
         if(root==null) return;
-        String[] texts = new String[]{"^喝水赚钱!^全部领取","^可领取", "^可打卡",".*我喝橙汁了，打个卡","收下奖励","^去升级",
-                "去看\\d{2}:\\d{2}视频领奖励",".*领取额外健康补贴","\\d{2}:\\d{2}:\\d{2}后来喝橙汁",
-                ".*后喝橙汁打卡","明天继续喝水打卡",".*我喝水了，打个卡"};
+        String[] texts = new String[]{"^喝水赚钱!^全部领取", "^可打卡",".*我喝橙汁了，打个卡","收下奖励","^去升级",
+                "^可升级","去看\\d{2}:\\d{2}视频领奖励",".*领取额外健康补贴","\\d{2}:\\d{2}:\\d{2}后来喝橙汁",
+                ".*后喝橙汁打卡",".*后喝水打卡","明天继续喝水打卡",".*我喝水了，打个卡","收下金币","(\\d)*分钟后来喝第(\\d)*杯水"};
         for(String text : texts){
             boolean action = performAllActionByText(root,text);
-            if(text.equals("明天继续喝水打卡") && action) back();
+            if(action && (text.equals("明天继续喝水打卡") || text.equals("(\\d)*分钟后来喝第(\\d)*杯水"))) back();
         }
-        /*
-        //HH:MM:SS后来喝橙汁
-        List<AccessibilityNodeInfo> laterDrinkJuiceNodes = getAllNodesByText(root,"后来喝橙汁");
-        if(laterDrinkJuiceNodes.isEmpty()) Log.d(TAG, "后来喝橙汁emtpy");
-        else if(laterDrinkJuiceNodes.size()==2){
-            Log.d(TAG, "后来喝橙汁——执行");
-            laterDrinkJuiceNodes.get(1).performAction(AccessibilityNodeInfo.ACTION_CLICK);
-        } else Log.d(TAG, "后来喝橙汁数量："+laterDrinkJuiceNodes.size());
-        //后喝橙汁打卡
-        List<AccessibilityNodeInfo> laterDrinkJuiceClockNodes = getAllNodesByText(root,"后喝橙汁打卡");
-        if(laterDrinkJuiceClockNodes.isEmpty()) Log.d(TAG, "后喝橙汁打卡汁emtpy");
-        else if(laterDrinkJuiceClockNodes.size()==1 &&
-                getAllNodesByText(root,"收下奖励").isEmpty() && laterDrinkJuiceNodes.isEmpty()){
-            Log.d(TAG, "后喝橙汁打卡——执行");
-            laterDrinkJuiceClockNodes.get(0).performAction(AccessibilityNodeInfo.ACTION_CLICK);
-        } else Log.d(TAG, "后喝橙汁打卡数量："+laterDrinkJuiceClockNodes.size());
-         */
     }
     private void meal(){
         AccessibilityNodeInfo root = getRootInActiveWindow();
@@ -169,9 +163,10 @@ public class PddService extends AccessibilityService {
     }
     private void redPacket(){//可开启
         AccessibilityNodeInfo root = getRootInActiveWindow();
-        String[] texts = new String[]{"^可开启", "看视频\\d{2}:\\d{2}领红包"};
+        String[] texts = new String[]{"^可开启", "看视频(\\d{2}:\\d{2})?领红包"};
         for(String text : texts){
-            performAllActionByText(root,text);
+            boolean action = performAllActionByText(root,text);
+//            if(action && text.equals("^可开启")) waitTime = 5000;
         }
     }
     private void sleep(){
@@ -188,27 +183,17 @@ public class PddService extends AccessibilityService {
             path.moveTo(0, 2000);//设置Path的起点
             path.lineTo(500, 2000);
             GestureDescription.Builder builder = new GestureDescription.Builder();
-            GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 500L, 100L)).build();
+            GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 0L, 100L)).build();
             dispatchGesture(description, new MyCallBack(), null);
         }
     }
-    private void backInSimulator(){//90,220
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            Log.d(TAG, "返回");
-            Path path = new Path();
-            path.moveTo(90,220);
-            GestureDescription.Builder builder = new GestureDescription.Builder();
-            GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 500L, 100L)).build();
-            dispatchGesture(description, new MyCallBack(), null);
-        }
-    }
-    private void openMenu(){//90,220
+    private void openMenu(){
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             Log.d(TAG, "openMenu");
             Path path = new Path();
-            path.moveTo(1325,590);
+            path.moveTo(1325,590);//1325,590
             GestureDescription.Builder builder = new GestureDescription.Builder();
-            GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 500L, 100L)).build();
+            GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 0L, 100L)).build();
             dispatchGesture(description, new MyCallBack(), null);
         }
     }
@@ -216,7 +201,7 @@ public class PddService extends AccessibilityService {
         AccessibilityNodeInfo root = getRootInActiveWindow();
         double nowTime = (new Date().getTime()-offsetTime)/60000.0;
         if(!inMenu){ //菜单未打开
-            if(menuTime==0 || (nowTime- menuTime)>=5){
+            if(menuTime==0 || (nowTime- menuTime)>=0.2){
                 openMenu();
                 Log.d(TAG, "打开菜单,相隔时间： "+(nowTime- menuTime)+" 分钟");
                 menuTime = nowTime;
@@ -231,7 +216,7 @@ public class PddService extends AccessibilityService {
             }
         }else{ //菜单打开了
             if(!inBrowse){ //未浏览
-                if(performOneActionByText(root,"^1000金币")){
+                if(performOneActionByText(root,"^去逛逛")){
                     inBrowse = true;
                     browseTime = nowTime;
 //                }else if(performOneActionByText(root,"^去浏览")){
@@ -255,23 +240,16 @@ public class PddService extends AccessibilityService {
     }
     private void slide(){
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Date date = new Date();
+            double nowTime = (date.getTime()-offsetTime)/1000.0;
+            slideTime = nowTime;
             Path path = new Path();
 //                path.moveTo(500, 1287);//设置Path的起点
 //                path.quadTo(450, 1036, 90, 864);
             path.moveTo(750, 1500);//设置Path的起点
             path.lineTo(750,1000);
             GestureDescription.Builder builder = new GestureDescription.Builder();
-            GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 500L, 100L)).build();
-            dispatchGesture(description, new MyCallBack(), null);
-        }
-    }
-    private void slideInSimulator(){
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            Path path = new Path();
-            path.moveTo(750, 2000);//设置Path的起点
-            path.lineTo(750,100);
-            GestureDescription.Builder builder = new GestureDescription.Builder();
-            GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 100L, 800L)).build();
+            GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 0L, 100L)).build();
             dispatchGesture(description, new MyCallBack(), null);
         }
     }
@@ -287,113 +265,48 @@ public class PddService extends AccessibilityService {
      * 领红包（看视频领红包页面领取按钮）：750,2150
      * 吃饭补贴领取(吃饭补贴页面领取按钮)：750,2050
      */
-    private void PDDAssistant(){//仿滑动
+    private void PDDAssistant(){
         if(onSlide) return;
         Log.d(TAG, "PDDAssistant");
+        Log.d(TAG, "allTexts: "+getAllTexts(getRootInActiveWindow()));
+//        if(true) return;
         new Thread(()->{
+            Date firstDate = new Date();
             onSlide = true;
-            Log.d(TAG, "allTexts: "+getAllTexts(getRootInActiveWindow()));
 //            back();
 //            browse();
-            if(!inMenu){
-                drink();
-                meal();
-                redPacket();
-                sleep();
-            }else{
-                if(inBrowse) Log.d(TAG, "inBrowse");
-                else Log.d(TAG, "inMenu");
-            }
+            drink();
+            Date midData1 = new Date();
+            Log.d(TAG, "PDDAssistant: 中间时间1："+String.format("%.2f", (midData1.getTime()-firstDate.getTime())/1000.0)+"s");
+            meal();
+            Date midData2 = new Date();
+            Log.d(TAG, "PDDAssistant: 中间时间2："+String.format("%.2f", (midData2.getTime()-midData1.getTime())/1000.0)+"s");
+            redPacket();
+            Date midData3 = new Date();
+            Log.d(TAG, "PDDAssistant: 中间时间3："+String.format("%.2f", (midData3.getTime()-midData2.getTime())/1000.0)+"s");
+            sleep();
+            Date midData4 = new Date();
+            Log.d(TAG, "PDDAssistant: 中间时间4："+String.format("%.2f", (midData4.getTime()-midData3.getTime())/1000.0)+"s");
             slide();
+            Date midData5 = new Date();
+            Log.d(TAG, "PDDAssistant: 中间时间5："+String.format("%.2f", (midData5.getTime()-midData4.getTime())/1000.0)+"s");
+            Date secondDate = new Date();
+            double midTime = (secondDate.getTime()-firstDate.getTime())/1000.0;
+            if(midTime>5.0){
+                File file = new File(new ContextWrapper(getApplicationContext()).getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "PddService.txt");
+                @SuppressLint("DefaultLocale")
+                String content = "\n"+sdf.format(new Date())+"  pdd  "+String.format("%.2f", midTime)+"s";
+                Utils.writeToFile(file, content);
+            }
+
+            if(midTime>3.5) waitTime = 0;
+            else waitTime = 4000-(int)(midTime*1000)+new Random().nextInt(200);
+            Log.d(TAG, "PDDAssistant: 中间时间："+String.format("%.2f", midTime));
             try {
-                int time = new Random().nextInt(500)+3000;
-                Thread.sleep(time);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            onSlide = false;
-        }).start();
-    }
-    private void clickGoldIngot(){
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            Log.d(TAG, "点击元宝");
-            Path path = new Path();
-            path.moveTo(1325,875);
-            GestureDescription.Builder builder = new GestureDescription.Builder();
-            GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 500L, 100L)).build();
-            dispatchGesture(description, new MyCallBack(), null);
-        }
-    }//backInSimulator()
-    private void clickCloseInSimulator(){
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            Log.d(TAG, "关闭窗口");
-            Path path = new Path();
-            path.moveTo(1250,800);
-            GestureDescription.Builder builder = new GestureDescription.Builder();
-            GestureDescription description = builder.addStroke(new GestureDescription.StrokeDescription(path, 500L, 100L)).build();
-            dispatchGesture(description, new MyCallBack(), null);
-        }
-    }
-    private void DTAssistant(){
-        if(onSlide) return;
-        Log.d(TAG, "DTAssistant");
-        new Thread(()->{
-            onSlide = true;
-            AccessibilityNodeInfo root = getRootInActiveWindow();
-            Log.d(TAG, "allTexts: "+getAllTexts(root));
-            int time = 10000;
-            if(!getAllNodesByText(root,"^元宝中心$").isEmpty()){
-                Log.d(TAG, "DTAssistant: 元宝中心");//邀请好友 再赚38元
-                boolean action = false;
-                String[] texts = new String[]{"^领取","邀请好友 再赚.*元"};
-                for(String text : texts){
-                    action|=performAllActionByText(root,text);
-                }
-                if(action) time = 2000;
-                else back();
-            }else if(!getAllNodesByText(root,"^6/6$").isEmpty()){
-                clickGoldIngot();
-                time = 2000;
-            }
-            try {
-                Thread.sleep(time);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            onSlide = false;
-        }).start();
-    }
-    private void DTAssistantInSimulator(){
-        if(onSlide) return;
-        Log.d(TAG, "DTAssistant");
-        new Thread(()->{
-            onSlide = true;
-            AccessibilityNodeInfo root = getRootInActiveWindow();
-            Log.d(TAG, "allTexts: "+getAllTexts(root));
-            int time = 10000;
-            if(!getAllNodesByText(root,"^元宝中心$").isEmpty()){
-                Log.d(TAG, "DTAssistant: 元宝中心");//邀请好友 再赚38元
-                if(performAllActionByText(root,"^领取")) time = 2000;
-                else if(performAllActionByText(root,"去看直播赚.*元宝")) time = 2000;
-                else if(!getAllNodesByText(root,"邀请好友 再赚.*元").isEmpty()) {
-                    time = 2000;
-                    clickCloseInSimulator();
-                }else if(!getAllNodesByText(root,"走路赚元宝 每日.*元宝").isEmpty()) {
-                    time = 2000;
-                    clickCloseInSimulator();
-                }
-                else {
-                    backInSimulator();
-                }
-            }else if(!getAllNodesByText(root,"^6/6$").isEmpty()){
-                slideInSimulator();
-                clickGoldIngot();
-                time = 2000;
-            }else{
-                slideInSimulator();
-            }
-            try {
-                Thread.sleep(time);
+//                int time = new Random().nextInt(500)+waitTime;
+                realTime = midTime + waitTime/1000.0;
+                Log.d(TAG, "PDDAssistant: waitTime: "+waitTime/1000.0+"s,    realTime: "+String.format("%.2f", realTime)+"s");
+                Thread.sleep(waitTime);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -402,8 +315,7 @@ public class PddService extends AccessibilityService {
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
-    class MyCallBack extends GestureResultCallback {
-
+    static class MyCallBack extends GestureResultCallback {
         public MyCallBack() {
             super();
         }
@@ -411,75 +323,26 @@ public class PddService extends AccessibilityService {
         @Override
         public void onCompleted(GestureDescription gestureDescription) {
             super.onCompleted(gestureDescription);
-
         }
 
         @Override
         public void onCancelled(GestureDescription gestureDescription) {
             super.onCancelled(gestureDescription);
-
         }
-    }
-    void printEvent(AccessibilityEvent event){
-        String pkgName = event.getPackageName().toString();
-        int eventType = event.getEventType();
-        Log.d(TAG, "eventType: " + eventType + " pkgName: " + pkgName);
-    }
-    boolean canReceiveRedPacket(AccessibilityEvent event){
-        List<CharSequence> texts = event.getText();
-        if (!texts.isEmpty()) {
-            for (CharSequence text : texts) {
-                String content = text.toString();
-                //如果微信红包的提示信息,则模拟点击进入相应的聊天窗口
-                if (content.contains("可领取")) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-    public List<AccessibilityNodeInfo> findNodesByText(String text) {
-        AccessibilityNodeInfo noteInfo = getRootInActiveWindow();
-        if (noteInfo != null) {
-            return noteInfo.findAccessibilityNodeInfosByText(text);
-        }
-        return null;
-    }
-    /**
-     * 根据View的ID搜索符合条件的节点,精确搜索方式;
-     * 这个只适用于自己写的界面，因为ID可能重复
-     * api要求18及以上
-     * @param viewId
-     */
-    public List<AccessibilityNodeInfo> findNodesById(AccessibilityEvent event,String viewId) {
-        AccessibilityNodeInfo nodeInfo = getRootInActiveWindow();
-        if (nodeInfo != null) {
-            if (Build.VERSION.SDK_INT >= 18) {
-                return nodeInfo.findAccessibilityNodeInfosByViewId(viewId);
-            }else Log.d(TAG, "findNodesById: SDK_INT < 18");
-        }else Log.d(TAG, "findNodesById: null");
-        return null;
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-//        printEvent(event);
-        if(event.getEventType()==AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED){
-//            Log.d(TAG, "onAccessibilityEvent: 窗口状态更改");
-        }else if(event.getEventType()==AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED){
-//            Log.d(TAG, "onAccessibilityEvent: 窗口内容更改");
-
-//            newer_time_redpack
-        }
         try {
             //拿到根节点
             AccessibilityNodeInfo rootInfo = getRootInActiveWindow();
             if (rootInfo == null) {
                 return;
             }
-            if(rootInfo.getPackageName().equals(PDD_Package_Name)) {
-                if(getAllNodesByText(rootInfo, "拼小圈").isEmpty()) PDDAssistant();
-            }else if(rootInfo.getPackageName().equals(DianTao_Package_Name)) DTAssistantInSimulator();
+            if(rootInfo.getPackageName().equals(PDD_Package_Name) &&
+                    getAllNodesByText(rootInfo, "拼小圈").isEmpty()) {
+                PDDAssistant();
+            }
         }catch (Exception e){
             Log.d(TAG, "onAccessibilityEvent: Error");
         }

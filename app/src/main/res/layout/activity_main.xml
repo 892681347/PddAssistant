@@ -11,9 +11,30 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="打开服务"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/open_txt"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintVertical_chainStyle="packed" />
+
+    <Button
+        android:id="@+id/open_txt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="打开记录"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/turn_on_off"
+        app:layout_constraintBottom_toTopOf="@+id/clean_txt"/>
+
+    <Button
+        android:id="@+id/clean_txt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="清空记录"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/open_txt"
+        app:layout_constraintBottom_toBottomOf="parent"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
